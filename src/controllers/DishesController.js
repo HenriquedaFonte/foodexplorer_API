@@ -4,7 +4,7 @@ const AppError = require('../utils/AppError');
 const DiskStorage = require('../providers/DiskStorage');
 
 class DishesController{
-  async create(request, response){
+  async create(request, response) {
     const { category, title, description, price, ingredients, user_id } = request.body;
 
     const avatarFileName = request.file.filename;  
@@ -22,6 +22,14 @@ class DishesController{
       user_id
     }); 
     
+    if (typeof ingredients === 'string'){
+      const {name, avatar} = JSON.parse(ingredients)
+      await knex('ingredients').insert({ 
+        name,
+        avatar,
+        dish_id
+      });
+    } else {
       const ingredientsInsert = ingredients.map(ingredient => {
         const {name, avatar} = JSON.parse(ingredient)
         return {
@@ -30,9 +38,8 @@ class DishesController{
           dish_id
         };
       });
-
-
-    await knex('ingredients').insert(ingredientsInsert);
+      await knex('ingredients').insert(ingredientsInsert)
+    };
 
     response.status(201).json();
   };
@@ -47,7 +54,7 @@ class DishesController{
 
     if (!checkdishExists){
       throw new AppError('Id invalid')
-    }
+    };
 
     return response.json({
       ...dish,
@@ -85,6 +92,53 @@ class DishesController{
 
     return response.json( dishes );
   };
+
+  async update(request, response) {
+    const { title, category, ingredients, price, description } = request.body;
+    const { id } = request.params;
+    const avatarFileName = request.file?.filename;
+
+    const diskStorage = new DiskStorage();
+
+    const dish = await knex("dishes").where({ id }).first();
+
+    if (avatarFileName) {
+      await diskStorage.deleteFile(dish.avatar);
+      const filename = await diskStorage.saveFile(avatarFileName);
+      dish.avatar = filename;
+    };
+
+    dish.title = title ?? dish.title;
+    dish.category = category ?? dish.category;
+    dish.price = price ?? dish.price;
+    dish.description = description ?? dish.description;
+
+    await knex("dishes").where({ id }).update(dish);
+
+    if (typeof ingredients === 'string'){
+      const {name, avatar} = JSON.parse(ingredients)
+      await knex("ingredients").where({ dish_id: id }).delete()
+      await knex("ingredients").where({ dish_id: id }).insert({ 
+        name,
+        avatar,
+        dish_id : dish.id});
+    }else{
+      const ingredientsInsert = ingredients.map(ingredient => {
+        const {name, avatar} = JSON.parse(ingredient)
+        return {
+          name,
+          avatar,
+          dish_id : dish.id
+        };
+      });
+      await knex("ingredients").where({ dish_id: id }).delete()
+      await knex("ingredients").where({ dish_id: id }).insert(ingredientsInsert)
+    };
+
+
+    response.status(201).json();
+  };
+
 };
 
 module.exports = DishesController;
