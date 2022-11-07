@@ -1,7 +1,7 @@
 
 <h1 align='center'>
-     Food Explorer - Rocketseat 
-           API Restful
+     Food Explorer API Restful -  Rocketseat 
+           
 </h1>
 
 ## 💻 About
